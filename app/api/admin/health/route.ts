@@ -15,10 +15,11 @@ export async function GET(req: Request) {
       supabase.from('sync_events').select('id, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(1)
     ]);
 
+    const lastEvent = (eventsRes.data as { created_at?: string }[] | null)?.[0];
     return NextResponse.json({
       tenants: tenantsRes.count || 0,
       sync_events: eventsRes.count || 0,
-      last_event_at: eventsRes.data?.[0]?.created_at || null
+      last_event_at: lastEvent?.created_at || null
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
