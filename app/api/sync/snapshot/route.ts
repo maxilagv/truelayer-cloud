@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
     const supabase = getSupabaseAdmin();
 
-    await supabase.from('catalog_config').upsert(
+    const configRes = await supabase.from('catalog_config').upsert(
       {
         tenant_id: tenantId,
         nombre: config?.nombre || '',
@@ -38,6 +38,9 @@ export async function POST(req: Request) {
       },
       { onConflict: 'tenant_id' }
     );
+    if (configRes.error) {
+      return NextResponse.json({ error: configRes.error.message }, { status: 500 });
+    }
 
     if (categorias.length) {
       const rows = categorias.map((c: any) => ({
@@ -49,9 +52,12 @@ export async function POST(req: Request) {
         active: c?.active != null ? Boolean(c.active) : true,
         updated_at: new Date().toISOString()
       }));
-      await supabase.from('catalog_categories').upsert(rows, {
+      const catRes = await supabase.from('catalog_categories').upsert(rows, {
         onConflict: 'tenant_id,external_id'
       });
+      if (catRes.error) {
+        return NextResponse.json({ error: catRes.error.message }, { status: 500 });
+      }
     }
 
     if (productos.length) {
@@ -66,6 +72,9 @@ export async function POST(req: Request) {
           .eq('tenant_id', tenantId)
           .eq('external_id', externalId)
           .maybeSingle();
+        if (existing.error) {
+          return NextResponse.json({ error: existing.error.message }, { status: 500 });
+        }
         const internalId = (existing.data as { id?: number } | null)?.id;
         if (internalId) catMap.set(externalId, internalId);
       }
@@ -94,9 +103,12 @@ export async function POST(req: Request) {
         });
       }
       if (rows.length) {
-        await supabase.from('catalog_products').upsert(rows, {
+        const prodRes = await supabase.from('catalog_products').upsert(rows, {
           onConflict: 'tenant_id,external_id'
         });
+        if (prodRes.error) {
+          return NextResponse.json({ error: prodRes.error.message }, { status: 500 });
+        }
       }
     }
 
@@ -106,4 +118,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

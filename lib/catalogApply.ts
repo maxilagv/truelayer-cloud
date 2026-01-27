@@ -56,6 +56,9 @@ async function resolveCategoryId(
     .eq('external_id', externalId)
     .maybeSingle();
 
+  if (existing.error) {
+    throw new Error(existing.error.message);
+  }
   const existingId = (existing.data as { id?: number } | null)?.id;
   if (existingId) return existingId;
 
@@ -73,13 +76,16 @@ async function resolveCategoryId(
     .select('id')
     .single();
 
+  if (insert.error) {
+    throw new Error(insert.error.message);
+  }
   const createdId = (insert.data as { id?: number } | null)?.id;
   return createdId || null;
 }
 
 async function applyConfig(tenantId: string, payload: CatalogConfigPayload) {
   const supabase = getSupabaseAdmin();
-  await supabase.from('catalog_config').upsert(
+  const res = await supabase.from('catalog_config').upsert(
     {
       tenant_id: tenantId,
       nombre: payload.nombre || '',
@@ -92,6 +98,9 @@ async function applyConfig(tenantId: string, payload: CatalogConfigPayload) {
     },
     { onConflict: 'tenant_id' }
   );
+  if (res.error) {
+    throw new Error(res.error.message);
+  }
 }
 
 async function applyCategory(tenantId: string, action: string, payload: CategoryPayload) {
@@ -100,15 +109,18 @@ async function applyCategory(tenantId: string, action: string, payload: Category
   if (externalId == null) return;
 
   if (action === 'delete') {
-    await supabase
+    const res = await supabase
       .from('catalog_categories')
       .update({ active: false, updated_at: nowIso() })
       .eq('tenant_id', tenantId)
       .eq('external_id', externalId);
+    if (res.error) {
+      throw new Error(res.error.message);
+    }
     return;
   }
 
-  await supabase.from('catalog_categories').upsert(
+  const res = await supabase.from('catalog_categories').upsert(
     {
       tenant_id: tenantId,
       external_id: externalId,
@@ -120,6 +132,9 @@ async function applyCategory(tenantId: string, action: string, payload: Category
     },
     { onConflict: 'tenant_id,external_id' }
   );
+  if (res.error) {
+    throw new Error(res.error.message);
+  }
 }
 
 async function applyProduct(tenantId: string, action: string, payload: ProductPayload) {
@@ -128,11 +143,14 @@ async function applyProduct(tenantId: string, action: string, payload: ProductPa
   if (externalId == null) return;
 
   if (action === 'delete') {
-    await supabase
+    const res = await supabase
       .from('catalog_products')
       .update({ active: false, updated_at: nowIso() })
       .eq('tenant_id', tenantId)
       .eq('external_id', externalId);
+    if (res.error) {
+      throw new Error(res.error.message);
+    }
     return;
   }
 
@@ -141,7 +159,7 @@ async function applyProduct(tenantId: string, action: string, payload: ProductPa
   const categoryId = await resolveCategoryId(tenantId, categoryExternalId, payload);
   if (!categoryId) return;
 
-  await supabase.from('catalog_products').upsert(
+  const res = await supabase.from('catalog_products').upsert(
     {
       tenant_id: tenantId,
       external_id: externalId,
@@ -159,6 +177,9 @@ async function applyProduct(tenantId: string, action: string, payload: ProductPa
     },
     { onConflict: 'tenant_id,external_id' }
   );
+  if (res.error) {
+    throw new Error(res.error.message);
+  }
 }
 
 export async function applyCatalogEvent(tenantId: string, event: SyncEvent) {
@@ -176,4 +197,3 @@ export async function applyCatalogEvent(tenantId: string, event: SyncEvent) {
     return;
   }
 }
-
