@@ -9,6 +9,9 @@ type CatalogoConfig = {
   destacado_producto_id?: number | null;
   price_type?: 'final' | 'distribuidor' | 'mayorista';
   publicado?: boolean;
+  whatsapp?: string | null;
+  whatsapp_url?: string | null;
+  whatsapp_number?: string | null;
 };
 
 type Categoria = {
@@ -46,6 +49,22 @@ function resolvePrice(product: Producto, mode: 'final' | 'distribuidor' | 'mayor
   return product.precio_final ?? product.price ?? 0;
 }
 
+function buildWhatsappLink(config: CatalogoConfig, product: Producto) {
+  const raw = String(config.whatsapp_url || config.whatsapp || '').trim();
+  const number = String(config.whatsapp_number || '').trim();
+  const message = `Hola, quiero el producto ${product.name}`;
+  if (raw) {
+    const glue = raw.includes('?') ? '&' : '?';
+    return `${raw}${glue}text=${encodeURIComponent(message)}`;
+  }
+  if (number) {
+    const digits = number.replace(/[^0-9]/g, '');
+    if (!digits) return null;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  }
+  return null;
+}
+
 export default function CatalogoClient({ slug, data }: { slug: string; data: CatalogoData }) {
   const config = data.config || {};
   const categories = (data.categorias || []).filter((c) => c.active !== false);
@@ -77,15 +96,15 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
     <div className="catalogo-shell">
       <div className="catalogo-grid" />
       <header className="catalogo-header">
-        <div className="catalogo-brand">
+        <div className="brand-float">
           {config.logo_url ? (
             <img src={config.logo_url} alt={config.nombre || 'Catalogo'} />
           ) : (
-            <div className="catalogo-logo">TL</div>
+            <div className="brand-badge">TL</div>
           )}
-          <div>
-            <div className="catalogo-title">{config.nombre || 'Catalogo Premium'}</div>
-            <div className="catalogo-subtitle">Actualizado en tiempo real desde el ERP</div>
+          <div className="brand-text">
+            <h1>{config.nombre || 'Catalogo del Futuro'}</h1>
+            <p>Vidriera digital premium conectada a tu ERP</p>
           </div>
         </div>
 
@@ -106,17 +125,18 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
 
       <section className="catalogo-hero">
         <div className="hero-copy">
-          <p className="eyebrow">Catalogo inteligente</p>
-          <h1>
-            El producto correcto,
-            <span> listo para vender hoy.</span>
-          </h1>
+          <p className="eyebrow">Dark Glass Experience</p>
+          <h2>
+            Tu producto estrella
+            <span> merece una vidriera de lujo.</span>
+          </h2>
           <p className="lead">
-            Precios claros, stock actualizado y categorias pensadas para que tu cliente decida rapido.
+            Todo se siente premium: tarjetas flotantes, brillo suave y un recorrido pensado para
+            vender rapido.
           </p>
           <div className="hero-cta">
-            <button className="primary">Ver novedades</button>
-            <button className="ghost" onClick={() => setActiveCategoryId(0)}>Ver todo</button>
+            <button className="primary">Explorar catalogo</button>
+            <button className="ghost" onClick={() => setActiveCategoryId(0)}>Ver todas</button>
           </div>
           <div className="hero-stats">
             <div>
@@ -129,7 +149,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
             </div>
             <div>
               <strong>24/7</strong>
-              <span>Actualizacion</span>
+              <span>Sync live</span>
             </div>
           </div>
         </div>
@@ -147,8 +167,19 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
               </div>
               <div className="hero-info">
                 <h3>{heroProduct.name}</h3>
-                <p>{heroProduct.description || 'Pensado para venta rapida y margen fuerte.'}</p>
-                <div className="price">${resolvePrice(heroProduct, priceType).toFixed(2)}</div>
+                <p>{heroProduct.description || 'Listo para cotizar en segundos.'}</p>
+                <div className="hero-footer">
+                  <div className="price">${resolvePrice(heroProduct, priceType).toFixed(2)}</div>
+                  <a
+                    className="cta"
+                    href={buildWhatsappLink(config, heroProduct) || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    data-disabled={!buildWhatsappLink(config, heroProduct)}
+                  >
+                    PEDIR
+                  </a>
+                </div>
               </div>
             </>
           ) : (
@@ -200,21 +231,32 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
                 <span>{list.length} productos</span>
               </div>
               <div className="product-grid">
-                {list.map((p, index) => (
-                  <article key={p.id} className="product-card" style={{ animationDelay: `${index * 0.04}s` }}>
-                    <div className="product-image">
-                      {p.image_url ? <img src={p.image_url} alt={p.name} /> : <div className="placeholder">Sin imagen</div>}
-                    </div>
-                    <div className="product-body">
-                      <div className="product-name">{p.name}</div>
-                      {p.description && <div className="product-desc">{p.description}</div>}
-                      <div className="product-footer">
-                        <div className="price">${resolvePrice(p, priceType).toFixed(2)}</div>
-                        <span className="pill">Disponible</span>
+                {list.map((p, index) => {
+                  const whatsappLink = buildWhatsappLink(config, p);
+                  return (
+                    <article key={p.id} className="product-card" style={{ animationDelay: `${index * 0.04}s` }}>
+                      <div className="product-image">
+                        {p.image_url ? <img src={p.image_url} alt={p.name} /> : <div className="placeholder">Sin imagen</div>}
                       </div>
-                    </div>
-                  </article>
-                ))}
+                      <div className="product-body">
+                        <div className="product-name">{p.name}</div>
+                        {p.description && <div className="product-desc">{p.description}</div>}
+                        <div className="product-footer">
+                          <div className="price">${resolvePrice(p, priceType).toFixed(2)}</div>
+                          <a
+                            className="cta"
+                            href={whatsappLink || '#'}
+                            target="_blank"
+                            rel="noreferrer"
+                            data-disabled={!whatsappLink}
+                          >
+                            PEDIR
+                          </a>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           );
