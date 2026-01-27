@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import './catalogo.css';
@@ -241,7 +241,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
       )}
 
       <footer className="catalogo-footer">
-        <p>Truelayer Cloud � Slug: {slug}</p>
+        <p>Truelayer Cloud · Slug: {slug}</p>
         <p>Catalogo vivo conectado al ERP</p>
       </footer>
     </div>
