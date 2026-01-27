@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '../../../../../lib/supabaseAdmin';
+import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 
 export async function GET(req: Request) {
   try {
@@ -25,4 +25,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-
