@@ -28,8 +28,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Slug already exists' }, { status: 409 });
     }
 
-    const insertTenant = await supabase
-      .from('tenants')
+    const insertTenant = await (supabase
+      .from('tenants') as any)
       .insert({ name, slug, status: 'active' })
       .select('id, slug')
       .single();
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const tokenHash = hashToken(token);
     const tokenPreview = previewToken(token);
 
-    const tokenInsert = await supabase.from('tenant_tokens').insert({
+    const tokenInsert = await (supabase.from('tenant_tokens') as any).insert({
       tenant_id: tenantData.id,
       token_hash: tokenHash,
       token_preview: tokenPreview
