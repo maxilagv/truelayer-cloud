@@ -1,8 +1,9 @@
 ﻿'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef, MouseEvent } from 'react';
 import './catalogo.css';
 
+// Types
 type CatalogoConfig = {
   nombre?: string;
   logo_url?: string;
@@ -43,6 +44,8 @@ type CatalogoData = {
   productos?: Producto[];
 };
 
+// --- Helpers ---
+
 function resolvePrice(product: Producto, mode: 'final' | 'distribuidor' | 'mayorista') {
   if (mode === 'distribuidor') return product.price_local ?? product.price ?? product.precio_final ?? 0;
   if (mode === 'mayorista') return product.price_distribuidor ?? product.price ?? product.precio_final ?? 0;
@@ -65,6 +68,42 @@ function buildWhatsappLink(config: CatalogoConfig, product: Producto) {
   return null;
 }
 
+// --- Components ---
+
+const CountUp = ({ end, label }: { end: number; label: string }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    if (end === 0) return;
+
+    const duration = 2000;
+    const incrementTime = (duration / end) * 1000;
+    // Cap frame rate for large numbers
+    const step = end > 100 ? Math.ceil(end / 100) : 1;
+
+    // Simple interval based approach for robustness
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(start);
+      }
+    }, 20);
+
+    return () => clearInterval(timer);
+  }, [end]);
+
+  return (
+    <div>
+      <strong>{count}</strong>
+      <span>{label}</span>
+    </div>
+  );
+};
+
 export default function CatalogoClient({ slug, data }: { slug: string; data: CatalogoData }) {
   const config = data.config || {};
   const categories = (data.categorias || []).filter((c) => c.active !== false);
@@ -75,7 +114,41 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
   const [activeCategoryId, setActiveCategoryId] = useState<number>(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Hero Logic
   const heroProduct = data.destacado || products[0] || null;
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  const handleHeroMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // Max tilt angles
+    const rotateX = ((y - centerY) / centerY) * -8;
+    const rotateY = ((x - centerX) / centerX) * 8;
+
+    heroRef.current.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+    heroRef.current.style.animation = 'none'; // Pause float while interacting
+  };
+
+  const handleHeroLeave = () => {
+    if (!heroRef.current) return;
+    heroRef.current.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)';
+    heroRef.current.style.animation = 'floatHero 6s ease-in-out infinite'; // Resume float
+  };
+
+  // Product Spotlight Logic
+  const handleProductMove = (e: MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget;
+    const rect = target.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    target.style.setProperty('--mouse-x', `${x}px`);
+    target.style.setProperty('--mouse-y', `${y}px`);
+  };
 
   const productsByCategory = useMemo(() => {
     const map = new Map<number, Producto[]>();
@@ -95,6 +168,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
   return (
     <div className="catalogo-shell">
       <div className="catalogo-grid" />
+
       <header className="catalogo-header">
         <div className="brand-float">
           {config.logo_url ? (
@@ -128,7 +202,8 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
           <p className="eyebrow">Dark Glass Experience</p>
           <h2>
             Tu producto estrella
-            <span> merece una vidriera de lujo.</span>
+            <br />
+            <span>merece una vidriera de lujo.</span>
           </h2>
           <p className="lead">
             Todo se siente premium: tarjetas flotantes, brillo suave y un recorrido pensado para
@@ -139,14 +214,8 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
             <button className="ghost" onClick={() => setActiveCategoryId(0)}>Ver todas</button>
           </div>
           <div className="hero-stats">
-            <div>
-              <strong>{products.length}</strong>
-              <span>Productos activos</span>
-            </div>
-            <div>
-              <strong>{categories.length}</strong>
-              <span>Categorias</span>
-            </div>
+            <CountUp end={products.length} label="Productos activos" />
+            <CountUp end={categories.length} label="Categorias" />
             <div>
               <strong>24/7</strong>
               <span>Sync live</span>
@@ -154,7 +223,12 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
           </div>
         </div>
 
-        <div className="hero-card">
+        <div
+          className="hero-card"
+          ref={heroRef}
+          onMouseMove={handleHeroMove}
+          onMouseLeave={handleHeroLeave}
+        >
           {heroProduct ? (
             <>
               <div className="tag">Producto estrella</div>
@@ -162,7 +236,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
                 {heroProduct.image_url ? (
                   <img src={heroProduct.image_url} alt={heroProduct.name} />
                 ) : (
-                  <div className="placeholder">Imagen</div>
+                  <div className="placeholder" style={{ color: '#000' }}>Imagen</div>
                 )}
               </div>
               <div className="hero-info">
@@ -224,19 +298,25 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
           return (
             <section key={cat.id} className="category-block">
               <div className="category-header">
-                <div>
-                  <h2>{cat.name}</h2>
-                  {cat.description && <p>{cat.description}</p>}
-                </div>
+                <h2>{cat.name}</h2>
                 <span>{list.length} productos</span>
               </div>
               <div className="product-grid">
                 {list.map((p, index) => {
                   const whatsappLink = buildWhatsappLink(config, p);
                   return (
-                    <article key={p.id} className="product-card" style={{ animationDelay: `${index * 0.04}s` }}>
+                    <article
+                      key={p.id}
+                      className="product-card"
+                      style={{ animationDelay: `${index * 0.05}s` } as any}
+                      onMouseMove={handleProductMove}
+                    >
                       <div className="product-image">
-                        {p.image_url ? <img src={p.image_url} alt={p.name} /> : <div className="placeholder">Sin imagen</div>}
+                        {p.image_url ? (
+                          <img src={p.image_url} alt={p.name} loading="lazy" />
+                        ) : (
+                          <div className="placeholder" style={{ color: '#000' }}>Sin imagen</div>
+                        )}
                       </div>
                       <div className="product-body">
                         <div className="product-name">{p.name}</div>
