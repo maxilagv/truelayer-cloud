@@ -79,10 +79,8 @@ const CountUp = ({ end, label }: { end: number; label: string }) => {
 
     const duration = 2000;
     const incrementTime = (duration / end) * 1000;
-    // Cap frame rate for large numbers
     const step = end > 100 ? Math.ceil(end / 100) : 1;
 
-    // Simple interval based approach for robustness
     const timer = setInterval(() => {
       start += step;
       if (start >= end) {
@@ -113,6 +111,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
   const [priceType, setPriceType] = useState<'final' | 'distribuidor' | 'mayorista'>(initialPrice);
   const [activeCategoryId, setActiveCategoryId] = useState<number>(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Hero Logic
   const heroProduct = data.destacado || products[0] || null;
@@ -178,7 +177,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
           )}
           <div className="brand-text">
             <h1>{config.nombre || 'Catalogo del Futuro'}</h1>
-            <p>Vidriera digital premium conectada a tu ERP</p>
+            <p>Vidriera digital premium</p>
           </div>
         </div>
 
@@ -232,7 +231,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
           {heroProduct ? (
             <>
               <div className="tag">Producto estrella</div>
-              <div className="hero-image">
+              <div className="hero-image" onClick={() => heroProduct.image_url && setLightboxImage(heroProduct.image_url)}>
                 {heroProduct.image_url ? (
                   <img src={heroProduct.image_url} alt={heroProduct.name} />
                 ) : (
@@ -311,7 +310,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
                       style={{ animationDelay: `${index * 0.05}s` } as any}
                       onMouseMove={handleProductMove}
                     >
-                      <div className="product-image">
+                      <div className="product-image" onClick={() => p.image_url && setLightboxImage(p.image_url)}>
                         {p.image_url ? (
                           <img src={p.image_url} alt={p.name} loading="lazy" />
                         ) : (
@@ -343,6 +342,16 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
         })}
       </main>
 
+      {/* LIGHTBOX */}
+      {lightboxImage && (
+        <div className="lightbox-overlay" onClick={() => setLightboxImage(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button className="lightbox-close" onClick={() => setLightboxImage(null)}>×</button>
+            <img src={lightboxImage} alt="Zoom" />
+          </div>
+        </div>
+      )}
+
       {menuOpen && (
         <aside className="catalogo-menu">
           <div className="menu-header">
@@ -363,8 +372,7 @@ export default function CatalogoClient({ slug, data }: { slug: string; data: Cat
       )}
 
       <footer className="catalogo-footer">
-        <p>Truelayer Cloud · Slug: {slug}</p>
-        <p>Catalogo vivo conectado al ERP</p>
+        <p>POWERED BY TRUELAYER CLOUD</p>
       </footer>
     </div>
   );
